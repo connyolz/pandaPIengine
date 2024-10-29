@@ -27,6 +27,7 @@ groupoption "sat" s "translation to SAT" group="planningAlgorithm"
 groupoption "bdd" b "symbolic search" group="planningAlgorithm"
 groupoption "translation" 2 "translation-based planner" group="planningAlgorithm"
 groupoption "interactive" I "interactive search" group="planningAlgorithm"
+option "pruneDeadEnds" - "enable pruning based on precs and effs of compound tasks" flag off
 
 section "Progression Search Options"
 

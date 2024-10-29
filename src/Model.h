@@ -178,6 +178,9 @@ namespace progression {
 			// transition mechanics
 			searchNode *decompose(searchNode *n, int taskNo, int method);
 
+		vector<int> pruneAndDecompose(searchNode *n);
+		searchNode *decomposeMiddle(searchNode *n, int taskNo, int method);
+
 			searchNode *apply(searchNode *n, int taskNo);
 
 			bool isApplicable(searchNode *n, int action) const;
@@ -251,6 +254,18 @@ namespace progression {
 
 			void calcSCCs();
 
+		// guaranteed/possible effects
+		vector<int>* poss_eff_positive;
+		vector<int>* poss_eff_negative;
+		vector<int>* eff_positive;
+		vector<int>* eff_negative;
+		vector<int>* preconditions;
+
+		vector<int>* poss_pos_m;
+		vector<int>* poss_neg_m;
+		vector<int>* eff_pos_m;
+		vector<int>* eff_neg_m;
+		vector<int>* prec_m;
 
         void calcAddToActionMapping();
 
@@ -273,6 +288,12 @@ namespace progression {
 					);
 
 			int psID = 0;
+
+		pair<planStep **, planStep **> initializeFirstPS(searchNode *parent, int method
+#ifdef TRACESOLUTION
+					, int parentSolutionStepIndex
+#endif
+			);
 
 			void printSummary();
 

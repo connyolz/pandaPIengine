@@ -221,7 +221,7 @@ int main(int argc, char *argv[]) {
 
 	bool useTaskHash = true;
 
-
+	bool pruneDeadEnds = args_info.pruneDeadEnds_flag;
 
     /* Read model */
     // todo: the correct value of maintainTaskRechability depends on the heuristic
@@ -448,7 +448,7 @@ int main(int argc, char *argv[]) {
 
 
 		bool printPlan = !args_info.noPlanOutput_flag;
-    	search.search(htn, tnI, timeL, suboptimalSearch, printPlan, heuristics, hLength, visi, fringe);
+    	search.search(htn, tnI, timeL, suboptimalSearch, pruneDeadEnds, printPlan, heuristics, hLength, visi, fringe);
 	} else if (algo == SAT){
 #ifndef CMAKE_NO_SAT
 		bool block_compression = args_info.blockcompression_flag;

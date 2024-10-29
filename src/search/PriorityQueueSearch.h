@@ -32,7 +32,7 @@ namespace progression {
 
         template<class VisitedList, class Fringe>
         void
-        search(Model *htn, searchNode *tnI, int timeLimit, bool suboptimalSearch, bool printSolution, Heuristic **hF,
+        search(Model *htn, searchNode *tnI, int timeLimit, bool suboptimalSearch, bool pruneDeadEnds, bool printSolution, Heuristic **hF,
                int hLength, VisitedList &visitedList, Fringe &fringe) {
             timeval tp;
             gettimeofday(&tp, NULL);
@@ -70,6 +70,7 @@ namespace progression {
             assert(!fringe.isEmpty());
 
             int numSearchNodes = 1;
+            int numDeadEnd = 0;
 
             while (!fringe.isEmpty()) {
                 searchNode *n = fringe.pop();
@@ -102,6 +103,16 @@ namespace progression {
                         if (!n2->goalReachable) { // progression has detected unsol
                             delete n2;
                             continue;
+                        }
+
+                        // Dead-end detection
+                        if (n2->numAbstract+n2->numPrimitive != 0 && pruneDeadEnds) {
+                            vector<int> pruneN = htn->pruneAndDecompose(n2);
+                            if (pruneN.size() == 1) {
+                                delete n2;
+                                numDeadEnd++;
+                                continue;
+                            }
                         }
 
                         // check whether we have seen this one already
@@ -168,6 +179,37 @@ namespace progression {
                         if (!n2->goalReachable) { // decomposition has detected unsol
                             delete n2;
                             continue; // with next method
+                        }
+
+                        // Dead-end detection
+                        if (n2->numAbstract+n2->numPrimitive != 0 && pruneDeadEnds) {
+                            vector<int> pruneN = htn->pruneAndDecompose(n2);
+                            if (pruneN.size() == 1) {
+                                delete n2;
+                                numDeadEnd++;
+                                continue;
+                            } else {
+                                while (!pruneN.empty()) {
+                                    method = pruneN.back();
+                                    pruneN.pop_back();
+                                    int numPS = pruneN.back();
+                                    pruneN.pop_back();
+                                    searchNode *n3;
+                                    if (numPS == 0) {
+                                        n3 = htn->decompose(n2, 0, method);
+                                        delete n2;
+                                        n2 = n3;
+                                        numSearchNodes++;
+                                    }
+                                    if (numPS != 0) {
+                                        n3 = htn->decomposeMiddle(n2, numPS, method);
+                                        delete n2;
+                                        n2 = n3;
+                                        numSearchNodes++;
+                                    }
+
+                                }
+                            }
                         }
 
                         // check whether we have seen this one already
@@ -258,6 +300,7 @@ namespace progression {
             currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
             cout << "Search Results" << endl;
             cout << "- Search time " << double(currentT - startT) / 1000 << " seconds" << endl;
+            cout << "- Dead-ends detected " << numDeadEnd << " nodes " << endl;
             cout << "- Visited list time " << visitedList.time / 1000 << " seconds" << endl;
             cout << "- Visited list inserts " << visitedList.attemptedInsertions << endl;
             cout << "- Visited list pruned " << visitedList.attemptedInsertions - visitedList.uniqueInsertions << endl;
