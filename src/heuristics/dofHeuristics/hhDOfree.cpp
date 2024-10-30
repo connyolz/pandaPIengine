@@ -9,7 +9,7 @@
 
 hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting,
                    csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs,
-                   csNetChange ncConstrs, csAddExternalLms addLMConstrs) :
+                   csNetChange ncConstrs, csAddExternalLms addLMConstrs, csPocl poclConstrs) :
         Heuristic(htn, index),
 		cIntType(IntType),
         cBoolType(BoolType),
@@ -19,7 +19,8 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
         cAndOrLms(aoLMConstrs),
         cLmcLms(lmcLMConstrs),
         cNetChange(ncConstrs),
-        cAddExternalLms(addLMConstrs) {
+        cAddExternalLms(addLMConstrs),
+        cPocl(poclConstrs) {
 
     assert((cIntType == IloNumVar::Float) || (cIntType == IloNumVar::Int));
     assert((cBoolType == IloNumVar::Float) || (cBoolType == IloNumVar::Bool));
@@ -57,43 +58,138 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
     this->iUA = new int[htn->numTasks];
     this->iM = new int[htn->numMethods];
 
-    int curI = 0;
-    EStartI = new int[htn->numActions];
+    if (this->cPocl == cPoclFull) {
+        // calculating order of actions
 
-    // storing for a certain state feature the action that has it as add effect
-    vector<int> * EInvAction = new vector<int>[htn->numStateBits];
-    vector<int> * EInvEffIndex = new vector<int>[htn->numStateBits];
-
-    for (int a = 0; a < htn->numActions; a++) {
-        EStartI[a] = curI; // set first index of this action
-        curI += htn->numAdds[a]; // increase by number of add effects
-        for (int ai = 0; ai < htn->numAdds[a]; ai++) {
-            EInvAction[htn->addLists[a][ai]].push_back(a); // store action index
-            EInvEffIndex[htn->addLists[a][ai]].push_back(ai); // store effect index
+        this->possProd.resize(htn->numActions);
+        for (int i = 0; i < htn->numActions; ++i) {
+            this->possProd[i].resize(htn->numPrecs[i]);
         }
+
+        // toDo: goal-action hinzufügen
+
+        long startT1 = 0;
+        timeval tp;
+        gettimeofday(&tp, NULL);
+        startT1 = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        htn->buildOrderingDatastructures();
+        cout << "- calculating action ordering ... ";
+        // consider all methods
+        for (int m = 0; m < htn->numMethods; m++) {
+            //  cout << " method: " << m << endl;
+            for (int Itask = 1; Itask < htn->numSubTasks[m]; Itask++) {
+                // int task = htn->subTasks[m][htn->methodTotalOrder[m][Itask]]; // toDo: sauber einfügen
+                int task = htn->subTasks[m][Itask];
+                // cout << " task: " << task << htn->taskNames[task] << endl;
+                if (htn->isPrimitive[task]) {
+                    for (int Iprec = 0; Iprec < htn->numPrecs[task]; Iprec++) {
+                        int prec = htn->precLists[task][Iprec];
+                        // iterate over all predecessors
+                        for (int Ipred = Itask - 1; Ipred >= 0; Ipred--) {
+                            int pred = htn->subTasks[m][Ipred];
+                            if (htn->isPrimitive[pred]) {
+                                if (htn->addVectors[pred][prec])
+                                    possProd[task][Iprec].insert(pred);
+                                if (htn->delVectors[pred][prec]) break;
+                                // cout << "case 1 action " << pred << " can support " << task << endl;
+                            }
+                            else {
+                                // pred is abstract
+                                if (!htn->eff_negative[pred - htn->numActions].empty() && find(
+                                    htn->eff_negative[pred - htn->numActions].begin(),
+                                    htn->eff_negative[pred - htn->numActions].end(),
+                                    prec) != htn->eff_negative[pred - htn->numActions].end())
+                                    break;
+                                for (int IreachTask = 0; IreachTask < htn->numReachable[pred]; IreachTask++) {
+                                    int reachTask = htn->reachable[pred][IreachTask];
+                                    if (htn->isPrimitive[reachTask] && htn->addVectors[reachTask][prec]) {
+                                        possProd[task][Iprec].insert(reachTask);
+                                        // cout << "case 2 action " << reachTask << htn->taskNames[reachTask] << " can support " << task << endl;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else {
+                    //task in method is abstract
+                    for (int Isubtask = 0; Isubtask < htn->numReachable[task]; Isubtask++) {
+                        int subtask = htn->reachable[task][Isubtask];
+                        if (!htn->isPrimitive[subtask]) continue;
+                        for (int Iprec = 0; Iprec < htn->numPrecs[subtask]; Iprec++) {
+                            int prec = htn->precLists[subtask][Iprec];
+                            for (int Ipred = Itask - 1; Ipred >= 0; Ipred--) {
+                                int pred = htn->subTasks[m][Ipred];
+                                if (htn->isPrimitive[pred]) {
+                                    if (htn->addVectors[pred][prec])
+                                        possProd[subtask][Iprec].insert(pred);
+                                    if (htn->delVectors[pred][prec]) break;
+                                }
+                                else {
+                                    // pred is abstract
+                                    if (!htn->eff_negative[pred - htn->numActions].empty() && find(
+                                        htn->eff_negative[pred - htn->numActions].begin(),
+                                        htn->eff_negative[pred - htn->numActions].end(),
+                                        prec) != htn->eff_negative[pred - htn->numActions].end())
+                                        break;
+                                    for (int IreachTask = 0; IreachTask < htn->numReachable[pred]; IreachTask++) {
+                                        int reachTask = htn->reachable[pred][IreachTask];
+                                        if (htn->isPrimitive[reachTask] && htn->addVectors[reachTask][prec]) {
+                                            possProd[subtask][Iprec].insert(reachTask);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        cout << "done" << endl;
+        gettimeofday(&tp, NULL);
+        long currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        cout << "- Action order calculation time " << double(currentT - startT1) / 1000 << " seconds " << endl;
     }
 
-    // store to permanent representation
-    this->iE = new int[EStartI[htn->numActions - 1]
-                       + htn->numAdds[htn->numActions - 1]]; // the add effects
-    EInvSize = new int[htn->numStateBits];
-    iEInvActionIndex = new int *[htn->numStateBits];
-    iEInvEffIndex = new int *[htn->numStateBits];
+    if ((this->cPg == cPgTimeRelaxed) || (this->cPg == cPgFull)) {
+        int curI = 0;
+        EStartI = new int[htn->numActions];
 
-    for (int i = 0; i < htn->numStateBits; i++) {
-        EInvSize[i] = EInvAction[i].size();
-        iEInvActionIndex[i] = new int[EInvSize[i]];
-        iEInvEffIndex[i] = new int[EInvSize[i]];
-        for (int j = 0; j < EInvSize[i]; j++) {
-            iEInvActionIndex[i][j] = EInvAction[i].back();
-            EInvAction[i].pop_back();
-            iEInvEffIndex[i][j] = EInvEffIndex[i].back();
-            EInvEffIndex[i].pop_back();
+        // storing for a certain state feature the action that has it as add effect
+        vector<int> * EInvAction = new vector<int>[htn->numStateBits];
+        vector<int> * EInvEffIndex = new vector<int>[htn->numStateBits];
+
+        for (int a = 0; a < htn->numActions; a++) {
+            EStartI[a] = curI; // set first index of this action
+            curI += htn->numAdds[a]; // increase by number of add effects
+            for (int ai = 0; ai < htn->numAdds[a]; ai++) {
+                EInvAction[htn->addLists[a][ai]].push_back(a); // store action index
+                EInvEffIndex[htn->addLists[a][ai]].push_back(ai); // store effect index
+            }
         }
-    }
 
-	delete[] EInvAction;
-	delete[] EInvEffIndex;
+        // store to permanent representation
+        this->iE = new int[EStartI[htn->numActions - 1]
+                           + htn->numAdds[htn->numActions - 1]]; // the add effects
+        EInvSize = new int[htn->numStateBits];
+        iEInvActionIndex = new int *[htn->numStateBits];
+        iEInvEffIndex = new int *[htn->numStateBits];
+
+        for (int i = 0; i < htn->numStateBits; i++) {
+            EInvSize[i] = EInvAction[i].size();
+            iEInvActionIndex[i] = new int[EInvSize[i]];
+            iEInvEffIndex[i] = new int[EInvSize[i]];
+            for (int j = 0; j < EInvSize[i]; j++) {
+                iEInvActionIndex[i][j] = EInvAction[i].back();
+                EInvAction[i].pop_back();
+                iEInvEffIndex[i][j] = EInvEffIndex[i].back();
+                EInvEffIndex[i].pop_back();
+            }
+        }
+
+        delete[] EInvAction;
+        delete[] EInvEffIndex;
+    }
 
     this->iTP = new int[htn->numStateBits]; // time proposition
     this->iTA = new int[htn->numActions]; // time action
@@ -369,9 +465,14 @@ void hhDOfree::printHeuristicInformation() {
         s = s + "NetChangeFull,";
     }
     if (this->cAddExternalLms == csAddExternalLms::cAddExternalLmsNo) {
-        s = s + "AddExternalLmsNo";
+        s = s + "AddExternalLmsNo,";
     } else if (this->cAddExternalLms == csAddExternalLms::cAddExternalLmsYes) {
-        s = s + "AddExternalLmsYes";
+        s = s + "AddExternalLmsYes,";
+    }
+    if (this->cPocl == csPocl::cPoclNone) {
+        s = s + "AddPoclNo";
+    } else if (this->cPocl == csPocl::cPoclFull) {
+        s = s + "AddPoclYes";
     }
     cout << "[HCONF:" << s << "]" << endl;
 }
@@ -462,6 +563,7 @@ int hhDOfree::recreateModel(searchNode *n) {
 
     int iv = 0;
     // useful facts contains only a subset of all reachable
+
     for (int i = pg->usefulFactSet.getFirst(); i >= 0;
          i = pg->usefulFactSet.getNext()) {
         v.add(IloNumVar(lenv, 0, 1, cBoolType));
@@ -493,17 +595,19 @@ int hhDOfree::recreateModel(searchNode *n) {
         iv++;
     }
 
-    for (int a = pg->reachableTasksSet.getFirst();
-         (a >= 0) && (a < htn->numActions); a = pg->reachableTasksSet.getNext()) {
-        for (int ai = 0; ai < htn->numAdds[a]; ai++) {
-            if (!pg->usefulFactSet.get(htn->addLists[a][ai]))
-                continue;
-            v.add(IloNumVar(lenv, 0, 1, cBoolType));
-            iE[EStartI[a] + ai] = iv;
+    if ((this->cPg == cPgTimeRelaxed) || (this->cPg == cPgFull)) {
+        for (int a = pg->reachableTasksSet.getFirst();
+             (a >= 0) && (a < htn->numActions); a = pg->reachableTasksSet.getNext()) {
+            for (int ai = 0; ai < htn->numAdds[a]; ai++) {
+                if (!pg->usefulFactSet.get(htn->addLists[a][ai]))
+                    continue;
+                v.add(IloNumVar(lenv, 0, 1, cBoolType));
+                iE[EStartI[a] + ai] = iv;
 #ifdef NAMEMODEL
-            v[iv].setName(("xE" + to_string(a) + "x" + to_string(ai)).c_str());
+                v[iv].setName(("xE" + to_string(a) + "x" + to_string(ai)).c_str());
 #endif
-            iv++;
+                iv++;
+            }
         }
     }
 
@@ -619,6 +723,41 @@ int hhDOfree::recreateModel(searchNode *n) {
                                  * (1 - v[iE[EStartI[a] + iadd]]));
                 }
             }
+        }
+    }
+
+    // POCL contraint
+    if (this->cPocl == cPoclFull) {
+        //for (int a = 0; a < htn->numActions; a++){
+        for (int a = pg->reachableTasksSet.getFirst(); (a >= 0) && (a < htn->numActions); a = pg->reachableTasksSet.getNext()) {
+            //  cout << " action " << a << htn->taskNames[a] << " variable " << iUA[a] << endl;
+            for (int i = 0; i < htn->numPrecs[a]; i++) {
+                IloNumExpr csupp(lenv);
+                int prec = htn->precLists[a][i];
+                if (n->state[prec]) {
+                    // cout << "prec " << htn->factStrs[prec] << " of action " << htn->taskNames[a] << " is contained in sI " << endl;
+                    // continue;
+                } else {
+                    for(int producer : possProd[a][i]) {
+                        if (pg->taskReachable(producer)) {
+                            csupp = csupp + v[iUA[producer]];
+                        }
+                        // cout << "action " << htn->taskNames[producer] << " is a producer of " << htn->taskNames[a] << endl;
+                    }
+                    model.add(100 * csupp >= v[iUA[a]]);
+                    // cout << "Why do I add x" << iUA[a] << endl;
+                }
+            }
+        }
+
+        for (int i = 0; i < htn->gSize; i++) { // ensure actions for goal facts
+            if (n->state[htn->gList[i]]) continue;
+            IloNumExpr csupp(lenv);
+            for (int j=0; j < htn->addToActionSize[htn->gList[i]]; j++) {
+                if (pg->taskReachable(htn->addToAction[htn->gList[i]][j]))
+                    csupp = csupp + v[iUA[htn->addToAction[htn->gList[i]][j]]];
+            }
+            model.add(csupp >= 1);
         }
     }
 

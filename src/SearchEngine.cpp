@@ -155,6 +155,7 @@ void printHeuristicHelp(){
 	cout << "  6. External landmarks (key: externalLM). Default is no. With none can be set to use external landmarks." << endl;
 	cout << "  7. LM-cut (key: lmclmc). Default is full. Can be set to none to not include LM-cut landmarks" << endl;
 	cout << "  8. Netchange Constraints (key: netchange). Default is full. Can be set to none to not include net-change constraints" << endl;
+	cout << "  9. P-TODR Constraints (key: pocl). Default is none. Can be set to full to include P-TODR/POCL constraints" << endl;
 }
 
 
@@ -225,7 +226,7 @@ int main(int argc, char *argv[]) {
 
     /* Read model */
     // todo: the correct value of maintainTaskRechability depends on the heuristic
-    eMaintainTaskReachability reachability = mtrACTIONS;
+    eMaintainTaskReachability reachability = mtrALL;
 	bool trackContainedTasks = useTaskHash;
     Model* htn = new Model(trackContainedTasks, reachability, true, true);
 	htn->filename = inputFilename;
@@ -397,8 +398,13 @@ int main(int argc, char *argv[]) {
 				if (netchange_string == "none")
 					netchange = cNetChangeNone;
 
+				string pocl_string = (args.count("pocl"))?args["pocl"]:args["arg9"];
+				csPocl pocl = cPoclNone;
+				if (pocl_string == "full")
+					pocl = cPoclFull;
 
-				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+
+				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM,pocl);
 #else
 				cout << "Planner compiled without CPLEX support" << endl;
 				return 1;

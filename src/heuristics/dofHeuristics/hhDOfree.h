@@ -53,6 +53,10 @@ namespace progression {
         cNetChangeFull, cNetChangeNone
     };
 
+    enum csPocl {
+        cPoclFull, cPoclNone
+    };
+
     class hhDOfree : public Heuristic {
         //int fileID = 0;
 
@@ -70,6 +74,9 @@ namespace progression {
         const csLmcLms cLmcLms;
         const csNetChange cNetChange;
         const csAddExternalLms cAddExternalLms;
+        const csPocl cPocl;
+
+        std::vector<std::vector<std::set<int>>> possProd;
 
         int *iUF;
         int *iUA;
@@ -109,7 +116,7 @@ namespace progression {
         int **Ivars = nullptr;
 
     public:
-        hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs);
+        hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs, csPocl cdPocl);
 
         virtual ~hhDOfree();
 		
@@ -123,7 +130,8 @@ namespace progression {
         "andOrLms=" + (cAndOrLms == cAndOrLmsFull?"full":(cAndOrLms==cAndOrLmsOnlyTnI?"onlyTNi":"none")) + ";" + 
         "externalLms=" + (cAddExternalLms == cAddExternalLmsYes?"yes":"no") + ";" + 
         "lmcLms=" + (cLmcLms == cLmcLmsFull?"full":"no") + ";" + 
-        "netchange=" + (cNetChange == cNetChangeFull?"full":"no") + 
+        "netchange=" + (cNetChange == cNetChangeFull?"full":"no") +
+        "pocl=" + (cPocl == cPoclFull?"full":"no") +
 		")";}
 
         void setHeuristicValue(searchNode *n, searchNode *parent, int action) override;
