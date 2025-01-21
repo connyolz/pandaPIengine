@@ -76,15 +76,17 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
         cout << "- calculating action ordering ... ";
         // consider all methods
         for (int m = 0; m < htn->numMethods; m++) {
+            //  iterate over the subtasks according to ordering (start with second task)
             for (int Itask = 1; Itask < htn->numSubTasks[m]; Itask++) {
-                // int task = htn->subTasks[m][htn->methodTotalOrder[m][Itask]];
-                int task = htn->subTasks[m][Itask];
+                // int task = htn->subTasks[m][Itask];
+                int task = htn->subTasks[m][htn->methodTotalOrder[m][Itask]];  // make sure methodTotalOrder exists
                 if (htn->isPrimitive[task]) {
                     for (int Iprec = 0; Iprec < htn->numPrecs[task]; Iprec++) {
                         int prec = htn->precLists[task][Iprec];
                         // iterate over all predecessors
                         for (int Ipred = Itask - 1; Ipred >= 0; Ipred--) {
-                            int pred = htn->subTasks[m][Ipred];
+                            // int pred = htn->subTasks[m][Ipred];
+                            int pred = htn->subTasks[m][htn->methodTotalOrder[m][Ipred]];
                             if (htn->isPrimitive[pred]) {
                                 if (htn->addVectors[pred][prec])
                                     possProd[task][Iprec].insert(pred);
@@ -115,7 +117,8 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
                         for (int Iprec = 0; Iprec < htn->numPrecs[subtask]; Iprec++) {
                             int prec = htn->precLists[subtask][Iprec];
                             for (int Ipred = Itask - 1; Ipred >= 0; Ipred--) {
-                                int pred = htn->subTasks[m][Ipred];
+                                // int pred = htn->subTasks[m][Ipred];
+                                int pred = htn->subTasks[m][htn->methodTotalOrder[m][Ipred]];
                                 if (htn->isPrimitive[pred]) {
                                     if (htn->addVectors[pred][prec])
                                         possProd[subtask][Iprec].insert(pred);
