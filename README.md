@@ -1,3 +1,14 @@
+## pandaDealer
+
+This branch contains the **D**ead-**E**nd **A**nalysis with **L**ook-aheads and **E**arly **R**efinements (Dealer) technique, which was published at SoCS 2023. This technique contributed to winning all total-order tracks in the International Planning Competition 2023 on HTN Planning.
+
+To enable this technique, run the planner with the parameter `--pruneDeadEnds`, e.g.:
+
+```
+./pandaPIengine --pruneDeadEnds domain-problem.sas
+```
+**Note:** The problem must be totally ordered.
+
 # More Background Information
 
 We've put together a website with the history of all planning systems of the PANDA family, links to all relevant software projects, and further background information including pointers explaining the techniques deployed by the respective systems.
