@@ -76,11 +76,9 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
         cout << "- calculating action ordering ... ";
         // consider all methods
         for (int m = 0; m < htn->numMethods; m++) {
-            //  cout << " method: " << m << endl;
             for (int Itask = 1; Itask < htn->numSubTasks[m]; Itask++) {
-                // int task = htn->subTasks[m][htn->methodTotalOrder[m][Itask]]; // toDo: sauber einfügen
+                // int task = htn->subTasks[m][htn->methodTotalOrder[m][Itask]];
                 int task = htn->subTasks[m][Itask];
-                // cout << " task: " << task << htn->taskNames[task] << endl;
                 if (htn->isPrimitive[task]) {
                     for (int Iprec = 0; Iprec < htn->numPrecs[task]; Iprec++) {
                         int prec = htn->precLists[task][Iprec];
@@ -91,7 +89,6 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
                                 if (htn->addVectors[pred][prec])
                                     possProd[task][Iprec].insert(pred);
                                 if (htn->delVectors[pred][prec]) break;
-                                // cout << "case 1 action " << pred << " can support " << task << endl;
                             }
                             else {
                                 // pred is abstract
@@ -104,7 +101,6 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
                                     int reachTask = htn->reachable[pred][IreachTask];
                                     if (htn->isPrimitive[reachTask] && htn->addVectors[reachTask][prec]) {
                                         possProd[task][Iprec].insert(reachTask);
-                                        // cout << "case 2 action " << reachTask << htn->taskNames[reachTask] << " can support " << task << endl;
                                     }
                                 }
                             }
