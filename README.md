@@ -1,3 +1,21 @@
+### P-Todr
+
+This branch contains the heuristic **P-Todr**, which was published at **ECAI 2024**.
+
+Since it is an **ILP-based heuristic**, you need to have **CPLEX** installed to solve the corresponding problems. After installation, configure the path to CPLEX on your machine in `src/CMakeLists.txt`.
+
+For **optimal** planning, you can run the heuristic (solving ILPs) as follows:
+
+```
+./pandaPIengine --gValue=action --pruneDeadEnds --heuristic="dof(netchange=none;lmclmc=none;pg=none;mode=optimal;pocl=full;type=ilp)" problem.sas
+```
+
+- To switch between solving the NP-complete **ILP** or the polynomial **LP**, use the parameters `type=ilp` and `type=lp` within the heuristic, respectively.
+- If you run the planner **without** the parameter `--pruneDeadEnds`, the pruning and early refinement (*Dealer*) will be disabled. However, the inferred preconditions and effects will still be computed before the search starts.
+- To include constraints for the **SCCs**, add `tdg=uc` within the heuristic's parameters.
+- More information can be found in the data repository: [https://doi.org/10.5281/zenodo.13269291](https://doi.org/10.5281/zenodo.13269291).
+
+
 # More Background Information
 
 We've put together a website with the history of all planning systems of the PANDA family, links to all relevant software projects, and further background information including pointers explaining the techniques deployed by the respective systems.
